@@ -8,8 +8,9 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
-class CategoryViewController: UITableViewController {
+class CategoryViewController: SwipeTableViewController {
     
     let realm = try! Realm()
     var categoryArray: Results<Category>?
@@ -18,6 +19,16 @@ class CategoryViewController: UITableViewController {
         super.viewDidLoad()
         
         loadData()
+        tableView.separatorStyle = .none
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        guard let navBar = navigationController?.navigationBar else {
+            fatalError("Navigation Controller does not exist.")
+        }
+        
+        navBar.barTintColor = UIColor(hexString: "1D9BF6")
+        
     }
     
     @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
@@ -29,6 +40,8 @@ class CategoryViewController: UITableViewController {
             let category = Category()
             
             category.name = textField.text!
+            let color = UIColor.randomFlat()
+            category.bgColor = color.hexValue()
             self.saveData(with: category)
             self.tableView.reloadData()
         }
@@ -48,10 +61,17 @@ class CategoryViewController: UITableViewController {
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell",for: indexPath)
-        let selectedPath = categoryArray?[indexPath.row]
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
-        cell.textLabel?.text = selectedPath?.name ?? ""
+        let selectedPath = categoryArray?[indexPath.row]
+        cell.textLabel?.text = selectedPath?.name ?? "No categories added"
+        
+        if let color = selectedPath?.bgColor {
+            if let uiColor = UIColor(hexString: color) {
+                cell.backgroundColor = uiColor
+                cell.textLabel?.textColor = ContrastColorOf(uiColor, returnFlat: true)
+            }
+        }
         
         return cell
     }
@@ -82,6 +102,22 @@ class CategoryViewController: UITableViewController {
             }
         } catch {
             print("Failed to write on realm with error \(error)")
+        }
+    }
+    
+    override func updateModel(at indexPath: IndexPath) {
+        if let category = self.categoryArray?[indexPath.row] {
+            self.deleteItem(from: category)
+        }
+    }
+    
+    func deleteItem(from category: Category) {
+        do {
+            try self.realm.write {
+                self.realm.delete(category)
+            }
+        } catch {
+            print("Failed deleting category, \(error)")
         }
     }
     
